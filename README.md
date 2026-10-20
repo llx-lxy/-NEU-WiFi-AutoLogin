@@ -55,4 +55,3 @@
 统一身份认证由 [NEU-ipgw-manager 3.3](https://pypi.org/project/NEU-ipgw-manager/3.3/) 完成。本项目提供 Windows 安装、Wi-Fi 连接和任务调度脚本，不是学校官方客户端。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 wheel 内的许可文件。
 
 提交问题时请描述 Windows／Python 版本、所连接的 SSID 和错误提示，并去除账号、密码或票据等私人信息。
-

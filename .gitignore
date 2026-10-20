@@ -1,0 +1,18 @@
+# Local credentials and runtime state
+config.json
+needs-reconfiguration.txt
+*.log
+*.lnk
+.env
+.env.*
+!.env.example
+
+# Installed dependencies and temporary files
+lib/
+tmp/
+.venv/
+__pycache__/
+*.py[cod]
+*.zip
+.DS_Store
+Thumbs.db
