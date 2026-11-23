@@ -1,4 +1,4 @@
-﻿param(
+param(
     [ValidateSet('Install','Once','Connect','Check','Remove')]
     [string]$Action = 'Check'
 )
@@ -63,6 +63,18 @@ function Get-Python312 {
     return $python
 }
 
+function Test-InstalledDependencies([string]$python) {
+    $lib = Join-Path $appDir 'lib'
+    if (-not (Test-Path -LiteralPath $lib)) { return $false }
+    $oldLib = $env:NEU_APP_LIB
+    try {
+        $env:NEU_APP_LIB = $lib
+        & $python -I -c 'import importlib.metadata as metadata, os, sys; sys.path.insert(0, os.environ["NEU_APP_LIB"]); from ipgw.core.ipgw import IPGW; from ipgw.core.api.portal import get_info; import requests, bs4, tabulate; assert metadata.version("NEU-ipgw-manager") == "3.3"' 2>$null | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch { return $false }
+    finally { $env:NEU_APP_LIB = $oldLib }
+}
+
 function Get-PlainPassword([string]$encrypted) {
     $secure = ConvertTo-SecureString $encrypted
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -117,14 +129,19 @@ switch ($Action) {
         $wheels = Join-Path $sourceDir 'wheels'
         if (-not (Test-Path -LiteralPath $wheels)) { throw '程序包缺少 wheels 目录。' }
         New-Item -ItemType Directory -Path $appDir -Force | Out-Null
-        $tempDir = Join-Path $appDir 'tmp'
-        New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-        $oldTemp = $env:TEMP; $oldTmp = $env:TMP
-        try {
-            $env:TEMP = $tempDir; $env:TMP = $tempDir
-            & $python -m pip install --disable-pip-version-check --no-index --find-links $wheels --target (Join-Path $appDir 'lib') --upgrade NEU-ipgw-manager==3.3
-            if ($LASTEXITCODE -ne 0) { throw '安装本地依赖失败。' }
-        } finally { $env:TEMP = $oldTemp; $env:TMP = $oldTmp }
+        if (Test-InstalledDependencies $python) {
+            Write-Log '已检测到可用的本地依赖，跳过重复安装。'
+        } else {
+            $tempDir = Join-Path $appDir 'tmp'
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            $oldTemp = $env:TEMP; $oldTmp = $env:TMP
+            try {
+                $env:TEMP = $tempDir; $env:TMP = $tempDir
+                & $python -m pip install --disable-pip-version-check --no-index --find-links $wheels --target (Join-Path $appDir 'lib') --upgrade NEU-ipgw-manager==3.3
+                if ($LASTEXITCODE -ne 0) { throw '安装本地依赖失败。请查看上方 pip 错误详情。' }
+            } finally { $env:TEMP = $oldTemp; $env:TMP = $oldTmp }
+            if (-not (Test-InstalledDependencies $python)) { throw '本地依赖安装完成，但导入验证失败。' }
+        }
         Copy-Item -LiteralPath (Join-Path $sourceDir 'login_worker.py') -Destination (Join-Path $appDir 'login_worker.py') -Force
         $installedScript = Join-Path $appDir 'NEU-WiFi-AutoLogin.ps1'
         if ($self -ne $installedScript) { Copy-Item -LiteralPath $self -Destination $installedScript -Force }
@@ -161,3 +178,4 @@ switch ($Action) {
         Write-Host '已删除自动登录任务和加密密码。'
     }
 }
+
