@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 
 from ipgw.core.api.SSO_error import BackendError
 from ipgw.core.api import SSO as sso_api
+from ipgw.core.api.portal_error import OtherException
 from ipgw.core.api.portal import get_info
 from ipgw.core.errors_modals import LoginResult
 from ipgw.core.ipgw import IPGW
@@ -81,6 +82,14 @@ def main():
                     sleep(2)
                     continue
                 print("统一身份认证服务返回异常页面，请稍后重试")
+                return 3
+            except OtherException as exc:
+                if (isinstance(exc.err_response, dict)
+                        and exc.err_response.get("message") == "ip_already_online_error"
+                        and status() == "ok"):
+                    print("校园网已连接")
+                    return 0
+                print("校园网返回异常认证结果，请稍后重试")
                 return 3
         if result == LoginResult.LoginSuccessful:
             if status() == "ok":
